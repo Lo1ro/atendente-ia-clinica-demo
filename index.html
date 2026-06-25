@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atendente IA — Bella Estética (Demo)</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,Arial,sans-serif;}
+  body{background:#0b141a;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px;}
+  .phone{width:400px;max-width:100%;height:760px;max-height:92vh;background:#0b141a;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid #1f2c33;}
+  .top{background:#202c33;color:#e9edef;display:flex;align-items:center;gap:10px;padding:12px 14px;}
+  .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#c86dd7,#3023ae);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:18px;}
+  .top .nm{font-size:16px;font-weight:600;line-height:1.1;}
+  .top .st{font-size:12px;color:#8aa;}
+  .chat{flex:1;overflow-y:auto;padding:16px 12px;background:#0b141a;background-image:linear-gradient(rgba(11,20,26,.96),rgba(11,20,26,.96));display:flex;flex-direction:column;gap:8px;}
+  .msg{max-width:80%;padding:8px 11px;border-radius:10px;font-size:14.5px;line-height:1.4;white-space:pre-wrap;color:#e9edef;box-shadow:0 1px 1px rgba(0,0,0,.2);}
+  .bot{align-self:flex-start;background:#202c33;border-top-left-radius:2px;}
+  .me{align-self:flex-end;background:#005c4b;border-top-right-radius:2px;}
+  .time{font-size:10px;color:#8aa;margin-top:3px;text-align:right;}
+  .quick{display:flex;flex-wrap:wrap;gap:6px;padding:6px 12px 2px;}
+  .chip{background:#202c33;color:#9fd;border:1px solid #2a3942;border-radius:16px;padding:6px 12px;font-size:13px;cursor:pointer;}
+  .chip:hover{background:#2a3942;}
+  .bar{display:flex;gap:8px;padding:10px;background:#202c33;align-items:center;}
+  .bar input{flex:1;background:#2a3942;border:none;border-radius:20px;padding:11px 14px;color:#e9edef;font-size:14px;outline:none;}
+  .bar button{background:#00a884;border:none;width:44px;height:44px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;}
+  .typing{align-self:flex-start;color:#8aa;font-size:13px;padding:2px 6px;font-style:italic;}
+  .tag{text-align:center;font-size:11px;color:#5e7a86;margin:4px 0;}
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="top">
+      <div class="av">B</div>
+      <div>
+        <div class="nm">Bella Estética</div>
+        <div class="st">Atendente virtual • online</div>
+      </div>
+    </div>
+    <div class="tag">Demonstração — Atendente de IA no WhatsApp</div>
+    <div class="chat" id="chat"></div>
+    <div class="quick" id="quick"></div>
+    <div class="bar">
+      <input id="inp" placeholder="Digite uma mensagem..." autocomplete="off">
+      <button id="send">➤</button>
+    </div>
+  </div>
+<script>
+const chat=document.getElementById('chat'), inp=document.getElementById('inp'), quick=document.getElementById('quick');
+function now(){const d=new Date();return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');}
+function add(text,who){const m=document.createElement('div');m.className='msg '+(who==='me'?'me':'bot');m.innerHTML=text.replace(/\n/g,'<br>')+'<div class="time">'+now()+(who==='me'?' ✓✓':'')+'</div>';chat.appendChild(m);chat.scrollTop=chat.scrollHeight;}
+function typing(cb){const t=document.createElement('div');t.className='typing';t.textContent='digitando...';chat.appendChild(t);chat.scrollTop=chat.scrollHeight;setTimeout(()=>{t.remove();cb();},700+Math.random()*500);}
+function botSay(text){typing(()=>add(text,'bot'));}
+function setQuick(arr){quick.innerHTML='';arr.forEach(q=>{const c=document.createElement('div');c.className='chip';c.textContent=q;c.onclick=()=>handle(q);quick.appendChild(c);});}
+
+const PROCS='Limpeza de pele, peeling, microagulhamento, massagem modeladora, drenagem, design de sobrancelha e aplicação de botox';
+let state=null, booking={};
+
+function handle(text){
+  add(text,'me'); inp.value='';
+  const t=text.toLowerCase();
+
+  // fluxo de agendamento
+  if(state==='proc'){ booking.proc=text; state='dia'; setQuick(['Amanhã de manhã','Amanhã à tarde','Sábado']); return botSay('Perfeito! 💆 Pra qual *dia* fica melhor?'); }
+  if(state==='dia'){ booking.dia=text; state='hora'; setQuick(['09:00','14:00','16:30']); return botSay('Show. E qual *horário*?'); }
+  if(state==='hora'){ booking.hora=text; state='nome'; setQuick([]); return botSay('Só pra confirmar a reserva, qual seu *nome*?'); }
+  if(state==='nome'){ booking.nome=text; state=null; setQuick(['Preços','Procedimentos','Endereço']); return botSay('Prontinho, '+text+'! ✅\nAgendei *'+booking.proc+'* — '+booking.dia+' às '+booking.hora+'.\nVocê vai receber um lembrete por aqui. Posso ajudar em mais algo?'); }
+
+  if(/(pre[çc]o|valor|quanto|tabela)/.test(t)) return botSay('Claro! 💰 Alguns valores:\n• Limpeza de pele — R$ 120\n• Peeling — R$ 180\n• Massagem modeladora — R$ 90\n• Design de sobrancelha — R$ 45\nA *avaliação é gratuita*. Quer que eu já agende a sua?');
+  if(/(agenda|marca|hor[áa]rio dispon|reserva|consulta|avalia)/.test(t)){ state='proc'; setQuick(['Limpeza de pele','Massagem modeladora','Avaliação gratuita']); return botSay('Vamos agendar! 😊 Qual *procedimento* você quer?'); }
+  if(/(procedimento|servi[çc]o|fazem|tratamento|o que voc)/.test(t)) return botSay('A gente faz: '+PROCS+'. 💖\nQuer saber preço de algum ou já agendar?');
+  if(/(endere[çc]o|onde|local|fica|chegar)/.test(t)) return botSay('📍 Estamos na Rua das Flores, 123 — Centro. Tem estacionamento na porta! Quer agendar uma visita?');
+  if(/(hor[áa]rio de func|abre|aberto|atende|funciona)/.test(t)) return botSay('🕘 Atendemos Seg a Sex das 9h às 19h e Sáb das 9h às 14h. Quer marcar um horário?');
+  if(/(humano|atendente|pessoa|falar com algu)/.test(t)) return botSay('Sem problema! 🙋 Vou chamar uma de nossas atendentes. Enquanto isso, posso já adiantar seu agendamento se quiser.');
+  if(/(oi|ol[áa]|bom dia|boa tarde|boa noite|tudo bem)/.test(t)) return botSay('Oi! 😊 Aqui é a assistente virtual da Bella Estética. Posso te ajudar com preços, procedimentos ou agendamento. O que você precisa?');
+  if(/(obrigad|valeu|brigad)/.test(t)) return botSay('Imagina! 💕 Qualquer coisa é só chamar. Te espero na Bella!');
+
+  return botSay('Posso te ajudar com *preços*, *procedimentos*, *agendamento* ou *endereço*. O que você prefere? 😊');
+}
+
+document.getElementById('send').onclick=()=>{ if(inp.value.trim()) handle(inp.value.trim()); };
+inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&inp.value.trim()) handle(inp.value.trim()); });
+
+// abertura
+setTimeout(()=>botSay('Oi! 😊 Seja bem-vindo à *Bella Estética*. Sou a assistente virtual e atendo 24h por aqui.\nComo posso te ajudar hoje?'),400);
+setTimeout(()=>setQuick(['Preços','Agendar','Procedimentos','Endereço']),1300);
+</script>
+</body>
+</html>
