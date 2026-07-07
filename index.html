@@ -30,9 +30,9 @@
 <body>
   <div class="phone">
     <div class="top">
-      <div class="av">B</div>
+      <div class="av" id="av">B</div>
       <div>
-        <div class="nm">Bella Estética</div>
+        <div class="nm" id="nm">Bella Estética</div>
         <div class="st">Atendente virtual • online</div>
       </div>
     </div>
@@ -52,37 +52,184 @@ function typing(cb){const t=document.createElement('div');t.className='typing';t
 function botSay(text){typing(()=>add(text,'bot'));}
 function setQuick(arr){quick.innerHTML='';arr.forEach(q=>{const c=document.createElement('div');c.className='chip';c.textContent=q;c.onclick=()=>handle(q);quick.appendChild(c);});}
 
-const PROCS='Limpeza de pele, peeling, microagulhamento, massagem modeladora, drenagem, design de sobrancelha e aplicação de botox';
-let state=null, booking={};
+// ── Personalização por URL ───────────────────────────────────────────────
+// ?negocio=Nome+Do+Negocio  → nome que aparece no cabeçalho e nas mensagens
+// ?cidade=Franca            → usada na resposta de endereço
+// ?nicho=estetica|odonto|salao|papelaria|informatica|imobiliaria
+// ?genero=o                 → "do/no Espaço X" em vez de "da/na Clínica X"
+// Sem parâmetros, a demo continua exatamente como sempre foi (Bella Estética).
+const Q=new URLSearchParams(location.search);
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const RAW_NEG=(Q.get('negocio')||'').trim().slice(0,60);
+const NEGOCIO=esc(RAW_NEG)||'Bella Estética';
+const CIDADE=esc((Q.get('cidade')||'').trim().slice(0,40));
+const NICHO=(Q.get('nicho')||'estetica').trim().toLowerCase();
+const ART=(Q.get('genero')||'a').toLowerCase()==='o'?'o':'a';
+const DA=ART==='o'?'do':'da', NA=ART==='o'?'no':'na', AO=ART==='o'?'ao':'à';
 
+const NICHOS={
+estetica:{
+  precos:'Claro! 💰 Alguns valores:\n• Limpeza de pele — R$ 120\n• Peeling — R$ 180\n• Massagem modeladora — R$ 90\n• Design de sobrancelha — R$ 45\nA *avaliação é gratuita*. Quer que eu já agende a sua?',
+  servicos:'A gente faz: Limpeza de pele, peeling, microagulhamento, massagem modeladora, drenagem, design de sobrancelha e aplicação de botox. 💖\nQuer saber preço de algum ou já agendar?',
+  servicosRe:/(procedimento|servi[çc]o|fazem|tratamento|o que voc)/,
+  agendaRe:/(agenda|marca|hor[áa]rio dispon|reserva|consulta|avalia)/,
+  flow:[
+    {q:'Vamos agendar! 😊 Qual *procedimento* você quer?',chips:['Limpeza de pele','Massagem modeladora','Avaliação gratuita']},
+    {q:'Perfeito! 💆 Pra qual *dia* fica melhor?',chips:['Amanhã de manhã','Amanhã à tarde','Sábado']},
+    {q:'Show. E qual *horário*?',chips:['09:00','14:00','16:30']},
+    {q:'Só pra confirmar a reserva, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nVocê vai receber um lembrete por aqui. Posso ajudar em mais algo?',
+  ajudas:'preços, procedimentos ou agendamento',
+  fallback:'Posso te ajudar com *preços*, *procedimentos*, *agendamento* ou *endereço*. O que você prefere? 😊',
+  chips:['Preços','Agendar','Procedimentos','Endereço'],
+  endFim:'Quer agendar uma visita?'
+},
+odonto:{
+  precos:'Claro! 💰 Alguns valores:\n• Avaliação — *gratuita*\n• Limpeza — R$ 150\n• Clareamento — a partir de R$ 400\n• Manutenção de aparelho — R$ 120\nQuer que eu já agende sua *avaliação gratuita*?',
+  servicos:'A gente faz: avaliação, limpeza, clareamento, restauração, canal, aparelho ortodôntico e implante. 🦷\nQuer saber valores ou já agendar sua avaliação?',
+  servicosRe:/(procedimento|servi[çc]o|fazem|tratamento|o que voc)/,
+  agendaRe:/(agenda|marca|hor[áa]rio dispon|reserva|consulta|avalia|remarca)/,
+  flow:[
+    {q:'Vamos agendar! 😁 Qual *tratamento* você procura?',chips:['Avaliação gratuita','Limpeza','Clareamento']},
+    {q:'Perfeito! 🦷 Pra qual *dia* fica melhor?',chips:['Amanhã de manhã','Amanhã à tarde','Sábado']},
+    {q:'Show. E qual *horário*?',chips:['09:00','14:00','16:30']},
+    {q:'Só pra confirmar a reserva, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nUm dia antes eu te mando a confirmação por aqui — assim ninguém esquece. 😉 Posso ajudar em mais algo?',
+  ajudas:'valores, tratamentos ou agendamento',
+  fallback:'Posso te ajudar com *valores*, *tratamentos*, *agendamento* ou *endereço*. O que você prefere? 😊',
+  chips:['Preços','Agendar avaliação','Tratamentos','Endereço'],
+  endFim:'Quer agendar uma avaliação?'
+},
+salao:{
+  precos:'Claro! 💰 Alguns valores:\n• Corte — R$ 60\n• Escova — R$ 50\n• Manicure — R$ 35\n• Design de sobrancelha — R$ 45\nQuer que eu já reserve um horário pra você?',
+  servicos:'A gente faz: corte, escova, coloração, mechas, hidratação, manicure, pedicure e design de sobrancelha. 💇\nQuer saber preço ou já garantir seu horário?',
+  servicosRe:/(procedimento|servi[çc]o|fazem|tratamento|o que voc)/,
+  agendaRe:/(agenda|marca|hor[áa]rio|reserva|encaixe|vaga)/,
+  flow:[
+    {q:'Vamos agendar! 😊 Qual *serviço* você quer?',chips:['Corte','Escova','Manicure']},
+    {q:'Perfeito! 💇 Pra qual *dia* fica melhor?',chips:['Hoje ainda','Amanhã','Sábado']},
+    {q:'Show. E qual *horário*?',chips:['09:00','14:00','16:30']},
+    {q:'Só pra confirmar a reserva, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nVocê vai receber um lembrete por aqui. Posso ajudar em mais algo?',
+  ajudas:'preços, serviços ou agendamento',
+  fallback:'Posso te ajudar com *preços*, *serviços*, *agendamento* ou *endereço*. O que você prefere? 😊',
+  chips:['Preços','Agendar','Serviços','Endereço'],
+  endFim:'Quer garantir um horário?'
+},
+papelaria:{
+  precos:'Te passo na hora! 💰 Alguns exemplos:\n• Sulfite A4 (resma 500) — R$ 32\n• Encadernação espiral — R$ 8\n• Impressão P&B — R$ 0,50/pág\nMe fala o item que você procura que eu vejo *preço e estoque* — e já deixo separado se quiser.',
+  servicos:'A gente trabalha com material escolar e de escritório, papelaria criativa, impressão e encadernação. ✏️\nMe fala o item que você procura que eu já vejo preço e estoque!',
+  servicosRe:/(produto|servi[çc]o|fazem|vendem|tem |estoque|o que voc)/,
+  agendaRe:/(pedido|encomenda|separa|reserva|lista escolar|encaderna|imprimir|impress)/,
+  flow:[
+    {q:'Fechado! 📝 Qual *item* você precisa?',chips:['Sulfite A4','Lista escolar','Encadernação']},
+    {q:'Boa! E *quantas unidades*?',chips:['1','2','5']},
+    {q:'Pra finalizar o pedido, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Pedido anotado, '+r[2]+'! ✅\n'+r[1]+'x *'+r[0]+'* — já deixei separado com o pessoal do balcão. Te aviso por aqui quando estiver pronto pra retirada. Precisa de mais alguma coisa?',
+  ajudas:'preço, estoque e encomendas',
+  fallback:'Posso te ajudar com *preços*, *estoque*, *pedidos* ou *endereço*. O que você precisa? 😊',
+  chips:['Preços','Fazer pedido','Produtos','Endereço'],
+  horario:'🕘 A loja abre Seg a Sex das 8h às 18h e Sáb das 8h às 13h — mas por aqui eu respondo e anoto pedido 24h! 😉',
+  endFim:'Passando na região, é só chegar!'
+},
+informatica:{
+  precos:'Te adianto umas referências: 💰\n• Formatação — R$ 120\n• Troca de tela de celular — a partir de R$ 250\n• Upgrade pra SSD — R$ 180 + peça\nO *orçamento é gratuito*. Quer que eu já abra o seu?',
+  servicos:'A gente faz: formatação, troca de tela, upgrade (SSD/memória), limpeza interna, montagem de PC e conserto em geral. 💻\nQuer um orçamento? É gratuito e rápido.',
+  servicosRe:/(servi[çc]o|fazem|consert|o que voc)/,
+  agendaRe:/(or[çc]ament|conserto|arruma|formatar|tela|upgrade|agenda|marca)/,
+  flow:[
+    {q:'Vamos lá! 🔧 Qual *equipamento*?',chips:['Notebook','Celular','PC de mesa']},
+    {q:'Entendi. E qual o *problema*?',chips:['Não liga','Tela quebrada','Muito lento']},
+    {q:'Pra abrir o orçamento, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Anotado, '+r[2]+'! ✅\nOrçamento aberto: *'+r[0]+' — '+r[1]+'*.\nO técnico confirma a faixa de preço por aqui em poucos minutos. Quer aproveitar e combinar a entrega do equipamento?',
+  extras:[[/(pronto|ficou|status|ordem de servi|minha os|meu pc|meu notebook|meu celular)/,'Deixa eu ver aqui... 🔎 Seu equipamento está *em finalização* — previsão de retirada hoje até as 17h! ✅\n(Na versão da sua loja, eu consulto direto o sistema de OS de vocês.)']],
+  ajudas:'orçamentos, status de conserto e agendamento',
+  fallback:'Posso te ajudar com *orçamento*, *status do conserto*, *preços* ou *endereço*. O que você precisa? 😊',
+  chips:['Orçamento','Ficou pronto?','Serviços','Endereço'],
+  horario:'🕘 A loja abre Seg a Sex das 8h às 18h e Sáb das 8h às 13h — mas por aqui eu respondo e abro orçamento 24h! 😉',
+  endFim:'Pode trazer o equipamento sem marcar!'
+},
+imobiliaria:{
+  precos:'Os valores variam por imóvel 🙂 Me diz se é *compra ou aluguel*, a região e a faixa de preço que eu já te mando as opções que encaixam. Quer começar?',
+  servicos:'Trabalhamos com *venda* e *locação* de casas, apartamentos e pontos comerciais. 🏠\nMe conta o que você procura que eu já filtro as opções!',
+  servicosRe:/(servi[çc]o|fazem|trabalh|o que voc)/,
+  agendaRe:/(im[óo]vel|visita|alug|compr|dispon|casa|apartamento|agenda|marca)/,
+  flow:[
+    {q:'Perfeito! 🏠 Você procura *compra* ou *aluguel*?',chips:['Comprar','Alugar']},
+    {q:'E que *tipo de imóvel*?',chips:['Casa','Apartamento','Ponto comercial']},
+    {q:'Qual *faixa de valor* você tem em mente?',chips:['Até R$ 1.500/mês','Até R$ 300 mil','Acima disso']},
+    {q:'Fechou! E qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Perfeito, '+r[3]+'! ✅\nAnotei: '+r[0].toLowerCase()+', '+r[1].toLowerCase()+', '+r[2]+'.\nJá filtrei os imóveis e passei pro corretor — ele te chama por aqui pra agendar a *visita*. Posso ajudar em mais algo?',
+  extras:[[/(boleto|2. via|segunda via)/,'Claro! 📄 Me confirma o nome que está no contrato que eu te mando a *2ª via do boleto* aqui em segundos.\n(Na versão da sua imobiliária, integrado ao sistema de vocês.)']],
+  ajudas:'busca de imóvel, agendamento de visita ou locação',
+  fallback:'Posso te ajudar a *encontrar um imóvel*, *agendar visita*, com *boleto/locação* ou *endereço*. O que você precisa? 😊',
+  chips:['Quero alugar','Quero comprar','2ª via de boleto','Endereço'],
+  horario:'🕘 O escritório abre Seg a Sex das 8h30 às 18h — mas por aqui eu respondo e agendo visita 24h! 😉',
+  endFim:'Quer agendar um horário com um corretor?'
+}
+};
+const C=NICHOS[NICHO]||NICHOS.estetica;
+
+const ENDERECO=CIDADE
+  ?'📍 Estamos no Centro de '+CIDADE+'. Tem estacionamento fácil por perto! '+C.endFim
+  :'📍 Estamos na Rua das Flores, 123 — Centro. Tem estacionamento na porta! '+C.endFim;
+const HORARIO=C.horario||'🕘 Atendemos Seg a Sex das 9h às 19h e Sáb das 9h às 14h. Quer marcar um horário?';
+const SAUDACAO='Oi! 😊 Aqui é a assistente virtual '+DA+' '+NEGOCIO+'. Posso te ajudar com '+C.ajudas+'. O que você precisa?';
+const TCHAU='Imagina! 💕 Qualquer coisa é só chamar. Te espero '+NA+' '+NEGOCIO+'!';
+const HUMANO='Sem problema! 🙋 Vou chamar uma pessoa da equipe. Enquanto isso, posso já adiantar seu atendimento se quiser.';
+
+// aplica identidade no cabeçalho e no título da aba
+if(RAW_NEG){
+  document.getElementById('nm').textContent=RAW_NEG;
+  document.getElementById('av').textContent=RAW_NEG[0].toUpperCase();
+  document.title='Atendente IA — '+RAW_NEG+' (Demo)';
+}
+
+const REGRAS=[
+  ...(C.extras||[]),
+  [/(pre[çc]o|valor|quanto|tabela)/,C.precos],
+  [C.agendaRe,'FLOW'],
+  [C.servicosRe,C.servicos],
+  [/(endere[çc]o|onde|local|fica|chegar)/,ENDERECO],
+  [/(hor[áa]rio de func|abre|aberto|atende|funciona)/,HORARIO],
+  [/(humano|atendente|pessoa|falar com algu)/,HUMANO],
+  [/(oi|ol[áa]|bom dia|boa tarde|boa noite|tudo bem)/,SAUDACAO],
+  [/(obrigad|valeu|brigad)/,TCHAU]
+];
+
+let step=-1, resp=[];
 function handle(text){
   add(text,'me'); inp.value='';
   const t=text.toLowerCase();
 
-  // fluxo de agendamento
-  if(state==='proc'){ booking.proc=text; state='dia'; setQuick(['Amanhã de manhã','Amanhã à tarde','Sábado']); return botSay('Perfeito! 💆 Pra qual *dia* fica melhor?'); }
-  if(state==='dia'){ booking.dia=text; state='hora'; setQuick(['09:00','14:00','16:30']); return botSay('Show. E qual *horário*?'); }
-  if(state==='hora'){ booking.hora=text; state='nome'; setQuick([]); return botSay('Só pra confirmar a reserva, qual seu *nome*?'); }
-  if(state==='nome'){ booking.nome=text; state=null; setQuick(['Preços','Procedimentos','Endereço']); return botSay('Prontinho, '+text+'! ✅\nAgendei *'+booking.proc+'* — '+booking.dia+' às '+booking.hora+'.\nVocê vai receber um lembrete por aqui. Posso ajudar em mais algo?'); }
+  // fluxo guiado (agendamento/pedido/orçamento, conforme o nicho)
+  if(step>=0){
+    resp.push(text); step++;
+    if(step<C.flow.length){ setQuick(C.flow[step].chips); return botSay(C.flow[step].q); }
+    step=-1; setQuick(C.chips); return botSay(C.confirma(resp));
+  }
 
-  if(/(pre[çc]o|valor|quanto|tabela)/.test(t)) return botSay('Claro! 💰 Alguns valores:\n• Limpeza de pele — R$ 120\n• Peeling — R$ 180\n• Massagem modeladora — R$ 90\n• Design de sobrancelha — R$ 45\nA *avaliação é gratuita*. Quer que eu já agende a sua?');
-  if(/(agenda|marca|hor[áa]rio dispon|reserva|consulta|avalia)/.test(t)){ state='proc'; setQuick(['Limpeza de pele','Massagem modeladora','Avaliação gratuita']); return botSay('Vamos agendar! 😊 Qual *procedimento* você quer?'); }
-  if(/(procedimento|servi[çc]o|fazem|tratamento|o que voc)/.test(t)) return botSay('A gente faz: '+PROCS+'. 💖\nQuer saber preço de algum ou já agendar?');
-  if(/(endere[çc]o|onde|local|fica|chegar)/.test(t)) return botSay('📍 Estamos na Rua das Flores, 123 — Centro. Tem estacionamento na porta! Quer agendar uma visita?');
-  if(/(hor[áa]rio de func|abre|aberto|atende|funciona)/.test(t)) return botSay('🕘 Atendemos Seg a Sex das 9h às 19h e Sáb das 9h às 14h. Quer marcar um horário?');
-  if(/(humano|atendente|pessoa|falar com algu)/.test(t)) return botSay('Sem problema! 🙋 Vou chamar uma de nossas atendentes. Enquanto isso, posso já adiantar seu agendamento se quiser.');
-  if(/(oi|ol[áa]|bom dia|boa tarde|boa noite|tudo bem)/.test(t)) return botSay('Oi! 😊 Aqui é a assistente virtual da Bella Estética. Posso te ajudar com preços, procedimentos ou agendamento. O que você precisa?');
-  if(/(obrigad|valeu|brigad)/.test(t)) return botSay('Imagina! 💕 Qualquer coisa é só chamar. Te espero na Bella!');
-
-  return botSay('Posso te ajudar com *preços*, *procedimentos*, *agendamento* ou *endereço*. O que você prefere? 😊');
+  for(const [re,r] of REGRAS){
+    if(re.test(t)){
+      if(r==='FLOW'){ step=0; resp=[]; setQuick(C.flow[0].chips); return botSay(C.flow[0].q); }
+      return botSay(r);
+    }
+  }
+  return botSay(C.fallback);
 }
 
 document.getElementById('send').onclick=()=>{ if(inp.value.trim()) handle(inp.value.trim()); };
 inp.addEventListener('keydown',e=>{ if(e.key==='Enter'&&inp.value.trim()) handle(inp.value.trim()); });
 
 // abertura
-setTimeout(()=>botSay('Oi! 😊 Seja bem-vindo à *Bella Estética*. Sou a assistente virtual e atendo 24h por aqui.\nComo posso te ajudar hoje?'),400);
-setTimeout(()=>setQuick(['Preços','Agendar','Procedimentos','Endereço']),1300);
+setTimeout(()=>botSay('Oi! 😊 Seja bem-vindo '+AO+' *'+NEGOCIO+'*. Sou a assistente virtual e atendo 24h por aqui.\nComo posso te ajudar hoje?'),400);
+setTimeout(()=>setQuick(C.chips),1300);
 </script>
 </body>
 </html>
