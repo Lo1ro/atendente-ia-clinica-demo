@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Atendente IA — Bella Estética (Demo)</title>
+<!-- Titulo NEUTRO de proposito: o preview de link do WhatsApp/Instagram le o HTML
+     sem executar JS, entao ele nunca ve a personalizacao de ?negocio=. Com o nome
+     de um cliente fixo aqui, todo lead recebia um cartao com o nome de OUTRO
+     negocio. O JS troca o title pelo nome real assim que a pagina abre (linha ~191). -->
+<title>Atendente de IA no WhatsApp — Demonstração</title>
+<meta name="description" content="Veja como um atendente de IA responde, tira dúvidas e agenda no WhatsApp do seu negócio. Demonstração interativa.">
+<meta property="og:title" content="Atendente de IA no WhatsApp — Demonstração">
+<meta property="og:description" content="Veja como um atendente de IA responde, tira dúvidas e agenda no WhatsApp do seu negócio. Demonstração interativa.">
+<meta property="og:type" content="website">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',system-ui,Arial,sans-serif;}
   body{background:#0b141a;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px;}
@@ -57,6 +65,12 @@ function setQuick(arr){quick.innerHTML='';arr.forEach(q=>{const c=document.creat
 // ?cidade=Franca            → usada na resposta de endereço
 // ?nicho=estetica|odonto|salao|papelaria|informatica|imobiliaria
 // ?genero=o                 → "do/no Espaço X" em vez de "da/na Clínica X"
+// ?id=gisela-pajolla        → perfil REAL do estabelecimento (ver NEGOCIOS abaixo).
+//                             Sobrescreve o nicho com serviços, endereço, horário
+//                             e respostas específicas daquela clínica.
+//                             IDs prontos: gisela-pajolla · sano-clinic-prime ·
+//                             fisiobeauty · clinica-virtuosa · mariana-veiga ·
+//                             uniq-esthetic
 // Sem parâmetros, a demo continua exatamente como sempre foi (Bella Estética).
 const Q=new URLSearchParams(location.search);
 const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -174,11 +188,142 @@ imobiliaria:{
   endFim:'Quer agendar um horário com um corretor?'
 }
 };
-const C=NICHOS[NICHO]||NICHOS.estetica;
+// ── Perfis por ESTABELECIMENTO ───────────────────────────────────────────
+// ?id=gisela-pajolla  → carrega os dados REAIS daquele negócio por cima do nicho.
+//
+// Levantado dos sites públicos em 13/08/2026.
+//
+// REGRA QUE NÃO SE QUEBRA: nunca inventar preço. Nenhuma dessas clínicas
+// publica tabela, e mostrar um valor errado do próprio negócio pra dona dele
+// destrói a demo na hora. Onde não há preço público, o bot responde como a
+// clínica responde de verdade: o valor sai na avaliação.
+const NEGOCIOS={
 
-const ENDERECO=CIDADE
+'gisela-pajolla':{
+  endereco:'📍 Ficamos na Av. Braz Olaia Acosta, 727 — Ribeirão Preto. Quer agendar sua avaliação em cortesia?',
+  horario:'🕘 A clínica atende de segunda a sexta, das 9h às 19h — mas por aqui eu respondo e agendo a qualquer hora. 😉',
+  precos:'O valor depende do protocolo que a Dra. Gisela indicar pra você — cada caso é montado individualmente. 💛\nPor isso a *Avaliação em Cortesia* é gratuita: a gente avalia e aí sim passa o plano com valores, sem compromisso.\nQuer que eu agende a sua?',
+  servicos:'A gente trabalha com estética facial, corporal, terapia capilar, depilação a laser e injetáveis. ✨\nAlgumas das nossas tecnologias: *Ultraformer MPT*, *Coolsculpting*, *CMSlim MAX*, *Volnewmer*, *Emtone*, *Exilis Elite* e *Soprano Titanium*.\nQuer saber sobre algum tratamento específico ou já agendar sua avaliação?',
+  flow:[
+    {q:'Vamos agendar sua *Avaliação em Cortesia*! 💛 O que você quer tratar?',chips:['Gordura localizada','Rejuvenescimento facial','Queda de cabelo','Depilação a laser']},
+    {q:'Anotado! 😊 Pra qual *dia* fica melhor?',chips:['Amanhã de manhã','Amanhã à tarde','Quinta']},
+    {q:'E qual *horário*? (atendemos das 9h às 19h)',chips:['09:00','14:00','17:30']},
+    {q:'Só pra confirmar, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei sua *Avaliação em Cortesia* — '+r[0]+', '+r[1]+' às '+r[2]+'.\nNa avaliação a gente monta o protocolo e passa os valores. Te mando um lembrete por aqui na véspera. Posso ajudar em mais alguma coisa?',
+  ajudas:'tratamentos, avaliação em cortesia ou agendamento',
+  fallback:'Posso te ajudar com *tratamentos*, *avaliação em cortesia*, *agendamento* ou *endereço*. O que você prefere? 💛',
+  chips:['Tratamentos','Agendar avaliação','Depilação a laser','Endereço'],
+  extras:[
+    [/(exossomo|pdrn|tricoscopia|capilar|cabelo|queda|alopecia)/,'Trabalhamos bastante com terapia capilar! 💇‍♀️ Temos *Tricoscopia* (análise capilar digital), *Exossomos* e *PDRN* — tecnologia regenerativa pra queda e alopecia.\nO primeiro passo é a tricoscopia pra entender o que está causando. Quer que eu agende?'],
+    [/(coolsculpting|cmslim|gordura|medida|emagrec)/,'Pra gordura localizada temos *Coolsculpting* e o *CMSlim MAX*, que define músculo e reduz gordura em 30 minutos. 💪\nO ideal é a avaliação pra ver qual encaixa no seu caso. Quer agendar?'],
+    [/(laser|depila|pelo|soprano)/,'Nossa depilação a laser é com *Soprano Titanium* — praticamente indolor e serve pra todos os tons de pele. Atendemos feminino e masculino. ✨\nQuer agendar uma avaliação?']
+  ]
+},
+
+'sano-clinic-prime':{
+  endereco:'📍 Ficamos na Rua Voluntários da Franca, 2290 — São José, Franca. Quer agendar sua avaliação?',
+  precos:'Depende bastante do tratamento e do seu caso — por isso a *primeira avaliação é gratuita*. 😁\nO dentista examina, monta o plano e te passa o valor certinho, com as opções de pagamento. Sem surpresa depois.\nQuer que eu já marque a sua?',
+  servicos:'A gente faz: implantes, ortodontia (inclusive *alinhadores invisíveis*), clareamento, lentes de contato dental, canal, prótese, harmonização orofacial, tratamento de bruxismo/DTM, odontopediatria e extração de siso. 🦷\nE atendemos *urgência 24h*.\nQuer saber de algum ou já agendar sua avaliação?',
+  flow:[
+    {q:'Vamos agendar sua avaliação! 😁 O que você procura?',chips:['Avaliação geral','Implante','Alinhador invisível','Clareamento']},
+    {q:'Perfeito! 🦷 Pra qual *dia* fica melhor?',chips:['Amanhã de manhã','Amanhã à tarde','Sábado']},
+    {q:'E qual *horário*?',chips:['09:00','14:00','16:30']},
+    {q:'Pra confirmar a reserva, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nUm dia antes eu confirmo por aqui — é assim que a gente reduz falta sem ninguém precisar ligar. 😉 Posso ajudar em mais algo?',
+  ajudas:'tratamentos, urgência, avaliação ou agendamento',
+  fallback:'Posso te ajudar com *tratamentos*, *avaliação gratuita*, *urgência*, *agendamento* ou *endereço*. O que você precisa? 😊',
+  chips:['Agendar avaliação','Implante','Urgência','Endereço'],
+  extras:[
+    [/(urg[êe]nc|emerg|com dor|dor de dente|dente quebrou|caiu (o|a) )/,'Atendemos *urgência odontológica 24h*. 🚨\nMe conta rapidinho o que está acontecendo que eu já aviso a equipe de plantão e te retorno o encaixe mais próximo.\n(Na versão da clínica, eu aciono o plantonista direto.)'],
+    [/(invisalign|alinhador|invis[íi]vel|aparelho)/,'Trabalhamos com aparelho fixo e também com *alinhadores invisíveis*. 😁\nA escolha depende do seu caso — na avaliação o ortodontista mostra as duas opções com prazo e valor. Quer agendar?'],
+    [/(implante|falta dente|prótese|protese)/,'Fazemos implante e prótese, inclusive *protocolo* (arcada toda). 🦷\nO primeiro passo é a avaliação com radiografia pra ver a condição do osso. Quer que eu marque?'],
+    [/(minha consulta|meu hor[áa]rio|remarcar|desmarcar|cancelar)/,'Deixa eu ver na agenda... 🔎 Encontrei sua consulta! Quer que eu *confirme*, *remarque* ou *cancele*?\n(Na versão da clínica, eu consulto a agenda de vocês em tempo real.)']
+  ]
+},
+
+'fisiobeauty':{
+  endereco:'📍 Estamos no *Santa Maria Medical Center* — Rua Paulo César Pacheco, 470, sala 405, São José, Franca. Espaço novo! ✨ Quer conhecer?',
+  horario:'🕘 Atendemos de segunda a sexta das 8h às 20h e sábado das 8h às 12h — e por aqui eu respondo a qualquer hora. 😉',
+  precos:'Cada protocolo é montado individualmente pela Dra. Lidiane, então o valor sai depois da avaliação. 💎\nA avaliação é onde a gente entende sua pele e monta o plano — aí sim vem o valor, sem compromisso.\nQuer que eu agende a sua?',
+  servicos:'Trabalhamos com estética facial e corporal avançada: *Método Harmonize 4D*, botox, ácido hialurônico, bioestimulador de colágeno, fios de PDO, peeling químico, microagulhamento, criolipólise, enzimas, drenagem linfática e ultralift. ✨\nQuer saber de algum ou já agendar a avaliação?',
+  flow:[
+    {q:'Vamos agendar sua avaliação! ✨ O que você quer tratar?',chips:['Rejuvenescimento facial','Gordura localizada','Flacidez','Método Harmonize 4D']},
+    {q:'Ótimo! 💎 Pra qual *dia*?',chips:['Amanhã de manhã','Amanhã à tarde','Sábado de manhã']},
+    {q:'E qual *horário*? (atendemos das 8h às 20h)',chips:['09:00','15:00','19:00']},
+    {q:'Pra confirmar, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Perfeito, '+r[3]+'! ✅\nAgendei sua avaliação — '+r[0]+', '+r[1]+' às '+r[2]+', no Santa Maria Medical Center.\nTe mando o lembrete por aqui na véspera. Posso ajudar em mais alguma coisa?',
+  ajudas:'tratamentos, avaliação ou agendamento',
+  fallback:'Posso te ajudar com *tratamentos*, *avaliação*, *agendamento* ou *endereço*. O que você prefere? ✨',
+  chips:['Tratamentos','Agendar avaliação','Harmonize 4D','Endereço'],
+  extras:[
+    [/(harmonize|4d|m[ée]todo exclusiv|qual m[ée]todo)/,'O *Harmonize 4D* é o método exclusivo da Dra. Lidiane — trabalha as quatro camadas do envelhecimento em vez de só preencher. 💎\nÉ o nosso carro-chefe. A avaliação é onde ela vê se encaixa no seu caso. Quer agendar?'],
+    [/(botox|toxina|ruga|preench|hialur)/,'Fazemos botox, ácido hialurônico e bioestimulador de colágeno — sempre com foco em resultado natural. ✨\nO plano certo sai na avaliação. Quer que eu marque?']
+  ]
+},
+
+'clinica-virtuosa':{
+  endereco:'📍 Estamos na Av. Major Nicácio, 1800 — Centro, Franca. Quer agendar sua avaliação gratuita?',
+  horario:'🕘 A clínica atende das 10h às 20h de segunda a sexta, e sábado das 8h às 12h — mas por aqui eu agendo 24h. 😉',
+  precos:'Os protocolos são personalizados, então o valor sai depois da *avaliação gratuita*. 💚\nNa avaliação a gente mede, entende seu objetivo e monta o plano com o valor fechado — sem compromisso nenhum.\nQuer que eu agende a sua?',
+  servicos:'Somos especializados em *emagrecimento* e estética corporal e facial, com protocolos exclusivos e acompanhamento. 💚\nA porta de entrada é a *avaliação gratuita*. Quer que eu agende a sua?',
+  flow:[
+    {q:'Vamos agendar sua *avaliação gratuita*! 💚 Qual seu objetivo?',chips:['Emagrecimento','Redução de medidas','Estética facial']},
+    {q:'Anotado! Pra qual *dia* fica melhor?',chips:['Amanhã','Depois de amanhã','Sábado de manhã']},
+    {q:'E qual *horário*? (atendemos das 10h às 20h)',chips:['10:00','15:00','19:30']},
+    {q:'Pra confirmar, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Prontinho, '+r[3]+'! ✅\nAgendei sua avaliação gratuita — '+r[0]+', '+r[1]+' às '+r[2]+'.\nTe mando o lembrete por aqui. Posso ajudar em mais alguma coisa? 💚',
+  ajudas:'protocolos, avaliação gratuita ou agendamento',
+  fallback:'Posso te ajudar com *protocolos*, *avaliação gratuita*, *agendamento* ou *endereço*. O que você prefere? 💚',
+  chips:['Avaliação gratuita','Emagrecimento','Protocolos','Endereço']
+},
+
+'mariana-veiga':{
+  precos:'Os valores dependem do procedimento e do seu caso — a Mariana passa tudo certinho na avaliação. 💗\nMe conta o que você tem em mente que eu já adianto pra ela?',
+  servicos:'A Mariana trabalha com toxina botulínica, preenchimento, mesoterapia facial e corporal, microagulhamento e procedimentos capilares. 💗\nE tem o *Clube do Botox*, com acompanhamento e cuidado da pele antes dos procedimentos.\nQuer saber de algum ou já agendar sua avaliação?',
+  flow:[
+    {q:'Vamos agendar! 💗 O que você procura?',chips:['Clube do Botox','Preenchimento','Mesoterapia','Avaliação']},
+    {q:'Perfeito! Pra qual *dia* fica melhor?',chips:['Amanhã','Quinta','Sábado']},
+    {q:'E qual *horário*?',chips:['09:00','14:00','17:00']},
+    {q:'Pra confirmar, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Fechado, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nA Mariana te confirma por aqui. Te mando um lembrete na véspera também. Precisa de mais alguma coisa? 💗',
+  ajudas:'procedimentos, Clube do Botox ou agendamento',
+  fallback:'Posso te ajudar com *procedimentos*, *Clube do Botox*, *agendamento* ou *valores*. O que você prefere? 💗',
+  chips:['Clube do Botox','Procedimentos','Agendar','Valores'],
+  extras:[
+    [/(clube|botox|assinatura|fideli)/,'O *Clube do Botox* é o programa da Mariana pra quem faz manutenção: acompanhamento contínuo e cuidado da pele antes de cada aplicação, não é procedimento avulso. 💗\nQuer que eu explique como funciona a adesão?']
+  ]
+},
+
+'uniq-esthetic':{
+  endereco:'📍 Estamos na Rua Prof. Corrêa Leite, 111 — piso superior, Alto da Boa Vista, Ribeirão Preto. Quer agendar?',
+  precos:'O valor sai depois da avaliação, porque cada protocolo é montado pro seu objetivo. ✨\nNa avaliação a gente entende o que você procura e fecha o plano com valor. Quer que eu agende?',
+  servicos:'Somos especializados em *rejuvenescimento* e *emagrecimento*, com protocolos personalizados facial e corporal. ✨\nQuer saber de algum ou prefere já agendar sua avaliação?',
+  flow:[
+    {q:'Vamos agendar! ✨ Qual seu objetivo?',chips:['Rejuvenescimento','Emagrecimento','Avaliação geral']},
+    {q:'Ótimo! Pra qual *dia* fica melhor?',chips:['Amanhã','Quinta','Sábado']},
+    {q:'E qual *horário*?',chips:['09:00','14:00','18:00']},
+    {q:'Pra confirmar, qual seu *nome*?',chips:[]}
+  ],
+  confirma:r=>'Perfeito, '+r[3]+'! ✅\nAgendei *'+r[0]+'* — '+r[1]+' às '+r[2]+'.\nJá deixei registrado na agenda e te mando o lembrete por aqui. Posso ajudar em mais alguma coisa?',
+  ajudas:'protocolos, avaliação ou agendamento',
+  fallback:'Posso te ajudar com *protocolos*, *avaliação*, *agendamento* ou *endereço*. O que você prefere? ✨',
+  chips:['Rejuvenescimento','Emagrecimento','Agendar','Endereço']
+}
+
+};
+
+// nicho é a base; o perfil do estabelecimento sobrescreve o que existir nele
+const ID=(Q.get('id')||'').trim().toLowerCase();
+const C=Object.assign({},NICHOS[NICHO]||NICHOS.estetica,NEGOCIOS[ID]||{});
+
+const ENDERECO=C.endereco||(CIDADE
   ?'📍 Estamos no Centro de '+CIDADE+'. Tem estacionamento fácil por perto! '+C.endFim
-  :'📍 Estamos na Rua das Flores, 123 — Centro. Tem estacionamento na porta! '+C.endFim;
+  :'📍 Estamos na Rua das Flores, 123 — Centro. Tem estacionamento na porta! '+C.endFim);
 const HORARIO=C.horario||'🕘 Atendemos Seg a Sex das 9h às 19h e Sáb das 9h às 14h. Quer marcar um horário?';
 const SAUDACAO='Oi! 😊 Aqui é a assistente virtual '+DA+' '+NEGOCIO+'. Posso te ajudar com '+C.ajudas+'. O que você precisa?';
 const TCHAU='Imagina! 💕 Qualquer coisa é só chamar. Te espero '+NA+' '+NEGOCIO+'!';
